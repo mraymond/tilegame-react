@@ -17,6 +17,7 @@ function Tile({
   x,
   y,
   height,
+  onTileClick,
 }) {
   // This reference will give us direct access to the mesh
   const mesh = useRef()
@@ -27,13 +28,21 @@ function Tile({
   //useFrame((state, delta) => (mesh.current.rotation.x += 0.01))
   // Return view, these are regular three.js elements expressed in JSX
   const position = coordsToVector(x,y,height*1/2+(1/2));
+
+  const handleTileClick = (e) => {
+    e.stopPropagation();
+    if (onTileClick) {
+      onTileClick(x, y, height);
+    }
+  }
+
   return (
     <mesh
       position={position}
       ref={mesh}
 
       rotation={[0, 0, 0]}
-      onClick={(event) => setActive(!active)}
+      onClick={handleTileClick}
       onPointerOver={(event) => {
         event.stopPropagation();
         return setHover(true)
@@ -62,13 +71,13 @@ camera.lookAt(scene.position)
   return <orbitControls ref={ref} args={[camera, gl.domElement]} enableRotate={false} maxPolarAngle={Math.PI / 2} />
 }
 
-const tiles = [
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0],
-];
+// const tiles = [
+//   [0, 0, 0, 0, 0],
+//   [0, 0, 0, 0, 0],
+//   [0, 0, 0, 0, 0],
+//   [0, 0, 0, 0, 0],
+//   [0, 0, 0, 0, 0],
+// ];
 
 
 const generateMap = (size) => {
@@ -89,9 +98,25 @@ const generateMap = (size) => {
   return {tiles, heightMap};
 }
 
+const {tiles, heightMap} = generateMap(10);
 
 function App() {
-  const {tiles, heightMap} = generateMap(10);
+  
+  const [selectedTile, setSelectedTile] = useState();
+  const [modelPosition, setModelPosition] = useState({x: 0, y: 1, height: .5});
+  const [modelSelected, setModelSelected] = useState(false);
+
+  const onTileClick = (x, y, height) => {
+    if (modelPosition.x == x && modelPosition.y == y) {
+      setModelSelected((state) => !state);
+      return;
+    }
+    if (!modelSelected) {
+      return;
+    }
+    setModelPosition({ x, y, height });
+  }
+
   return (
     <Canvas>
       <Stats showPanel={0} className="stats" />
@@ -99,9 +124,9 @@ function App() {
       <OrthographicCamera position={[-20, 20, 20]} zoom={25} makeDefault />
       <ambientLight />
       <pointLight position={[10, 10, 10]} />
-      <Model position={coordsToVector(0, 1, .5)} scale={0.5} />
+      <Model action={modelSelected ? 'Walk' : ''} position={coordsToVector(modelPosition.x, modelPosition.y, modelPosition.height+1)} scale={0.5} />
       {tiles.map((row, rowIndex) => row.map((col, colIndex) => 
-        <Tile x={rowIndex} y={colIndex} tileType={col} height={heightMap[rowIndex][colIndex]} />
+        <Tile onTileClick={onTileClick} x={rowIndex} y={colIndex} tileType={col} height={heightMap[rowIndex][colIndex]} />
       ))}
     </Canvas>
   )
